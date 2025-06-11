@@ -39,7 +39,7 @@ jobs:
           TAG=$(date +%Y%m%d%H%M%S)
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
           echo "TAG=$TAG"   >> $GITHUB_ENV
-
+  
           echo ">>> IMAGE is $IMAGE"
           echo ">>> TAG   is $TAG"
       
@@ -51,26 +51,3 @@ jobs:
           echo "Pushing images"
           docker push $IMAGE:$TAG
           docker push $IMAGE:latest
-
-      - name: Deploy to remote server
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            echo "Pull latest image"
-            docker pull ${{ secrets.DOCKER_USERNAME }}/school-backend:latest
-
-            echo "Stop & remove old container if exists"
-            if [ "$(docker ps -q -f name=school-backend)" ]; then
-              docker stop school-backend
-              docker rm school-backend
-            fi
-
-            echo "Run new container"
-            docker run -d \
-              --restart=always \
-              --name school-backend \
-              -p 4000:4000 \
-              ${{ secrets.DOCKER_USERNAME }}/school-backend:latest

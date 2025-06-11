@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-schooldb}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+  school-backend:
+    # образ будет браться по тегу из переменной TAG
+    image: ${DOCKER_REGISTRY}:${TAG}
+    restart: always
+    ports:
+      - "4000:4000"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
+
+networks:
+  appnet:
+    driver: bridge
