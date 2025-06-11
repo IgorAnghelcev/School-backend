@@ -86,7 +86,7 @@ model Schedule {
 
   @@unique([classId, dayOfWeek])
 }
-ls
+
 model Lesson {
   id         String   @id @default(uuid())
   schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
