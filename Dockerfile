@@ -23,7 +23,7 @@ COPY --from=builder /app/dist ./dist
 
 COPY --from=builder /app/prisma     ./prisma
 COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-# Если у вас .env лежит в корне — скопируем и его
+
 COPY .env ./
 
 EXPOSE 4000
