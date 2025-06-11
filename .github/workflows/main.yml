@@ -60,7 +60,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             echo "Pull latest image"
-            docker pull $IMAGE:$TAG
+            docker pull ${{ secrets.DOCKER_USERNAME }}/school-backend:latest
 
             echo "Stop & remove old container if exists"
             if [ "$(docker ps -q -f name=school-backend)" ]; then
@@ -73,4 +73,4 @@ jobs:
               --restart=always \
               --name school-backend \
               -p 4000:4000 \
-              $IMAGE:$TAG
+              ${{ secrets.DOCKER_USERNAME }}/school-backend:latest
