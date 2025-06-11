@@ -1,5 +1,5 @@
 import {Request, Response} from 'express';
-import {PrismaClient} from '@prisma/client';
+import {PrismaClient, File} from "@prisma/client";
 import {CreatePostInput, UpdatePostInput, PostParams} from '../schemas/post';
 import {AuthRequest} from "../middlewares/auth";
 import {GetPostsInput} from '../schemas/post';
@@ -145,11 +145,11 @@ export async function deletePost(
     const {id} = req.params;
 
     try {
-        const files = await prisma.file.findMany({
+        const files: File[] = await prisma.file.findMany({
             where: {postId: id},
         });
 
-        const keys = files.map((file) => {
+        const keys = files.map((file: File) => {
             const url = new URL(file.url);
             const fullPath = decodeURIComponent(url.pathname);
             const prefix = `/${config.S3_BUCKET_NAME}/`;
@@ -210,7 +210,7 @@ export const getAllFiles: RequestHandler = async (req, res) => {
             where: whereFiles,
             skip,
             take: limit,
-            orderBy: { createdAt: 'desc' },
+            orderBy: {createdAt: 'desc'},
         }),
     ]);
 
