@@ -11,7 +11,6 @@ RUN npm ci
 COPY . .
 RUN npx prisma generate
 
-# Копируем весь исходный код и билдим TS
 RUN npm run build
 
 # --- runtime stage ---
