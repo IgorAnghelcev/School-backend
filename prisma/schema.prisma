@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Post_Type {
+  NEWS
+  POST
+  ABOUT
+  TEACHERS
+  TEACHERS_DOCUMENTS
+  STUDENTS
+  LEARNING_PROCESS
+  PARENTS
+}
+
+// Посты от админа
+model Post {
+  id        String    @id @default(uuid())
+  author    User      @relation(fields: [authorId], references: [id])
+  authorId  String
+  title     String // главная тема
+  content   String // текст поста
+  files    File[]
+  createdAt DateTime  @default(now())
+  type      Post_Type @default(POST)
+}
+
+model File {
+  id        String   @id @default(uuid())
+  url       String // ссылка на S3
+  mimeType  String
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  // Связь с постами (только админы могут создавать)
+  posts     Post[]
+
+}
+
+model Class {
+  id        String     @id @default(uuid())
+  grade     Int // номер класса, от 1 до 12
+  section   String // буква или комбинация
+  // Расписания для класса
+  schedules Schedule[]
+
+  // Обязательное уникальное ограничение (grade + section)
+  @@unique([grade, section])
+}
+
+// Расписание уроков для каждого класса по дням недели
+model Schedule {
+  id        String   @id @default(uuid())
+  class     Class    @relation(fields: [classId], references: [id],onDelete: Cascade)
+  classId   String
+  dayOfWeek Int // 1=Monday, ..., 7=Sunday
+  lessons   Lesson[]
+  createdAt DateTime @default(now())
+
+  @@unique([classId, dayOfWeek])
+}
+ls
+model Lesson {
+  id         String   @id @default(uuid())
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduleId String
+  period     Int // номер урока в дне
+  subject    String // предмет
+}
