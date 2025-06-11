@@ -8,12 +8,10 @@ COPY package.json package-lock.json ./
 # npm ci быстрее и повторяемо ставит ровно те версии, которые в lock-файле
 RUN npm ci
 
-# Копируем схему и генерируем клиент
-COPY prisma ./prisma
+COPY . .
 RUN npx prisma generate
 
 # Копируем весь исходный код и билдим TS
-COPY . .
 RUN npm run build
 
 # --- runtime stage ---
