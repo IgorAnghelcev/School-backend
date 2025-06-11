@@ -115,12 +115,12 @@ export async function updatePost(
 
         const files = req.files ?? [];
         if (files.length > 0) {
-            const photosData = files.map(f => ({
+            const filesData = files.map(f => ({
                 url: f.location,                 // S3 URL
                 mimeType: f.mimetype,            // MIME-тип (image/jpeg, application/pdf и т. д.)
                 postId: post.id
             }));
-            await prisma.file.createMany({data: photosData});
+            await prisma.file.createMany({data: filesData});
         }
 
         const full = await prisma.post.findUnique({
@@ -145,12 +145,12 @@ export async function deletePost(
     const {id} = req.params;
 
     try {
-        const photos = await prisma.file.findMany({
+        const files = await prisma.file.findMany({
             where: {postId: id},
         });
 
-        const keys = photos.map((photo) => {
-            const url = new URL(photo.url);
+        const keys = files.map((file) => {
+            const url = new URL(file.url);
             const fullPath = decodeURIComponent(url.pathname);
             const prefix = `/${config.S3_BUCKET_NAME}/`;
             const key = fullPath.startsWith(prefix)
@@ -186,7 +186,7 @@ export async function deletePost(
 }
 
 
-export const getAllPhotos: RequestHandler = async (req, res) => {
+export const getAllFiles: RequestHandler = async (req, res) => {
     const {page: rawPage, limit: rawLimit} = req.query as {
         page?: string | number;
         limit?: string | number;
@@ -197,17 +197,17 @@ export const getAllPhotos: RequestHandler = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    const wherePhotos = {
+    const whereFiles = {
         mimeType: {
             startsWith: 'image/',
         },
     };
-    const [total, photos] = await Promise.all([
+    const [total, files] = await Promise.all([
         prisma.file.count({
-            where: wherePhotos,
+            where: whereFiles,
         }),
         prisma.file.findMany({
-            where: wherePhotos,
+            where: whereFiles,
             skip,
             take: limit,
             orderBy: { createdAt: 'desc' },
@@ -215,7 +215,7 @@ export const getAllPhotos: RequestHandler = async (req, res) => {
     ]);
 
     res.json({
-        data: photos,
+        data: files,
         meta: {
             total,
             page,

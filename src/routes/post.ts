@@ -14,7 +14,7 @@ import {
     getAllPosts,
     getPostById,
     updatePost,
-    deletePost, getAllPhotos,
+    deletePost, getAllFiles,
 } from '../controllers/postController';
 import {config} from "../config/config";
 import { getPostsSchema } from '../schemas/post';
@@ -80,7 +80,7 @@ router.get(
 router.get(
     '/api/v1/posts/photos',
     validate(getPhotosSchema),
-    getAllPhotos
+    getAllFiles
 );
 
 
