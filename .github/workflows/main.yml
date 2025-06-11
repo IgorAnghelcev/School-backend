@@ -37,7 +37,10 @@ jobs:
         run: |
           IMAGE=${{ secrets.DOCKER_USERNAME }}/school-backend
           TAG=$(date +%Y%m%d%H%M%S)
-          echo "Building $IMAGE:$TAG and latest"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          echo "TAG=$TAG"   >> $GITHUB_ENV
+
+          
           docker build --no-cache \
             -t $IMAGE:$TAG \
             -t $IMAGE:latest .
@@ -53,10 +56,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            IMAGE=${{ secrets.DOCKER_USERNAME }}/school-backend:$TAG
-
             echo "Pull latest image"
-            docker pull $IMAGE
+            docker pull $IMAGE:$TAG
 
             echo "Stop & remove old container if exists"
             if [ "$(docker ps -q -f name=school-backend)" ]; then
@@ -69,4 +70,4 @@ jobs:
               --restart=always \
               --name school-backend \
               -p 4000:4000 \
-              $IMAGE
+              $IMAGE:$TAG
