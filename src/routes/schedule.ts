@@ -25,7 +25,7 @@ router.get(
 router.get(
     '/api/v1/schedules/:id',
     validate(scheduleParamsSchema),
-    scheduleController.getScheduleById
+    scheduleController.getSchedulesByClassId
 );
 
 router.patch(

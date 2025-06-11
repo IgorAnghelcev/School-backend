@@ -8,7 +8,6 @@ const router = Router();
 
 router.put(
     '/api/v1/user/password',
-    authenticate,
     validate(changePasswordSchema),
     changePassword
 );

@@ -45,6 +45,22 @@ export async function getScheduleById(
     }
     res.json(schedule);
 }
+export async function getSchedulesByClassId(
+    req: Request<{ id: string }>,
+    res: Response
+): Promise<void> {
+    const { id } = req.params;
+    const schedules = await prisma.schedule.findMany({
+        where: { classId: id },
+        include: { lessons: true },
+    });
+    if (!schedules) {
+        res.status(404).json({ error: 'Schedules not found' });
+        return;
+    }
+    res.json(schedules);
+}
+
 
 export async function updateSchedule(
     req: Request<{ id: string }, {}, UpdateScheduleInput['body']>,

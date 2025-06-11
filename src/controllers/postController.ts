@@ -2,8 +2,8 @@ import {Request, Response} from 'express';
 import {PrismaClient} from '@prisma/client';
 import {CreatePostInput, UpdatePostInput, PostParams} from '../schemas/post';
 import {AuthRequest} from "../middlewares/auth";
-import { GetPostsInput } from '../schemas/post';
-import { RequestHandler } from 'express';
+import {GetPostsInput} from '../schemas/post';
+import {RequestHandler} from 'express';
 import {DeleteObjectsCommand} from "@aws-sdk/client-s3";
 import {s3} from "../config/aws";
 import {config} from "../config/config";
@@ -22,27 +22,31 @@ export async function createPost(
                 title,
                 content,
                 type: type ?? undefined,
-
                 author: {
-                    connect: { id: authorId },
+                    connect: {id: authorId},
                 }
             },
             include: {
-                photos: true
+                files: true
             }
         });
-        const files = req.files ?? [];
+        const files = (req.files as Express.MulterS3.File[]) || [];
         if (files.length > 0) {
-            const photosData = files.map(f => ({
-                url: f.location,
+            // Соберём данные для создания записей в таблице File
+            const filesData = files.map((file) => ({
+                url: file.location,                 // S3 URL
+                mimeType: file.mimetype,            // MIME-тип (image/jpeg, application/pdf и т. д.)
                 postId: post.id,
             }));
-            await prisma.photo.createMany({data: photosData});
+
+            // Запись сразу нескольких строк в БД через Prisma
+            await prisma.file.createMany({data: filesData});
         }
+
 
         const full = await prisma.post.findUnique({
             where: {id: post.id},
-            include: {photos: true},
+            include: {files: true},
         });
         res.status(201).json(full);
     } catch (e) {
@@ -53,20 +57,20 @@ export async function createPost(
 
 
 export const getAllPosts: RequestHandler = async (req, res) => {
-    const { page, limit, type: postType } = req.query as unknown as GetPostsInput;
+    const {page, limit, type: postType} = req.query as unknown as GetPostsInput;
 
     const skip = (page - 1) * limit;
 
-    const whereClause = postType ? { type: postType } : undefined;
+    const whereClause = postType ? {type: postType} : undefined;
 
     const [total, posts] = await Promise.all([
-        prisma.post.count({ where: whereClause }),
+        prisma.post.count({where: whereClause}),
         prisma.post.findMany({
             where: whereClause,
             skip,
             take: parseInt(String(limit)),
-            orderBy: { createdAt: 'desc' },
-            include: { photos: true },
+            orderBy: {createdAt: 'desc'},
+            include: {files: true},
         }),
     ]);
 
@@ -80,6 +84,7 @@ export const getAllPosts: RequestHandler = async (req, res) => {
         },
     });
 };
+
 export async function getPostById(
     req: Request<PostParams>,
     res: Response
@@ -87,7 +92,7 @@ export async function getPostById(
     const {id} = req.params;
     const post = await prisma.post.findUnique({
         where: {id},
-        include: {photos: true},
+        include: {files: true},
     });
     if (!post) {
         res.status(404).json({error: 'Пост не найден'});
@@ -111,15 +116,16 @@ export async function updatePost(
         const files = req.files ?? [];
         if (files.length > 0) {
             const photosData = files.map(f => ({
-                url: f.location,
-                postId: post.id,
+                url: f.location,                 // S3 URL
+                mimeType: f.mimetype,            // MIME-тип (image/jpeg, application/pdf и т. д.)
+                postId: post.id
             }));
-            await prisma.photo.createMany({data: photosData});
+            await prisma.file.createMany({data: photosData});
         }
 
         const full = await prisma.post.findUnique({
             where: {id},
-            include: {photos: true},
+            include: {files: true},
         });
         res.json(full);
     } catch (e: any) {
@@ -136,11 +142,11 @@ export async function deletePost(
     req: Request<PostParams>,
     res: Response
 ): Promise<void> {
-    const { id } = req.params;
+    const {id} = req.params;
 
     try {
-        const photos = await prisma.photo.findMany({
-            where: { postId: id },
+        const photos = await prisma.file.findMany({
+            where: {postId: id},
         });
 
         const keys = photos.map((photo) => {
@@ -151,7 +157,7 @@ export async function deletePost(
                 ? fullPath.slice(prefix.length)
                 : fullPath.slice(1); // fallback
 
-            return { Key: key };
+            return {Key: key};
         });
         if (keys.length > 0) {
             await s3.send(
@@ -165,16 +171,56 @@ export async function deletePost(
             );
         }
 
-        await prisma.photo.deleteMany({ where: { postId: id } });
-        await prisma.post.delete({ where: { id } });
+        await prisma.file.deleteMany({where: {postId: id}});
+        await prisma.post.delete({where: {id}});
 
-        res.json({ message: 'Пост и фотографии удалены' });
+        res.json({message: 'Пост и фотографии удалены'});
     } catch (e: any) {
         if (e.code === 'P2025') {
-            res.status(404).json({ error: 'Пост не найден' });
+            res.status(404).json({error: 'Пост не найден'});
             return;
         }
         console.error(e);
-        res.status(500).json({ error: 'Ошибка удаления поста' });
+        res.status(500).json({error: 'Ошибка удаления поста'});
     }
 }
+
+
+export const getAllPhotos: RequestHandler = async (req, res) => {
+    const {page: rawPage, limit: rawLimit} = req.query as {
+        page?: string | number;
+        limit?: string | number;
+    };
+
+    const page = Number(rawPage) > 0 ? Math.floor(Number(rawPage)) : 1;
+    const limit = Number(rawLimit) > 0 ? Math.floor(Number(rawLimit)) : 10;
+
+    const skip = (page - 1) * limit;
+
+    const wherePhotos = {
+        mimeType: {
+            startsWith: 'image/',
+        },
+    };
+    const [total, photos] = await Promise.all([
+        prisma.file.count({
+            where: wherePhotos,
+        }),
+        prisma.file.findMany({
+            where: wherePhotos,
+            skip,
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+        }),
+    ]);
+
+    res.json({
+        data: photos,
+        meta: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
+    });
+};

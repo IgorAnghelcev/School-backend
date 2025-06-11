@@ -1,0 +1,72 @@
+name: CI/CD for Docker
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: Main
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create .env file in src/main/resources
+        run: |
+          mkdir -p src/main/resources  # Создаем папку, если ее нет
+          echo 'DATABASE_URL="${{ secrets.DATABASE_URL }}"' >> .env
+          echo "PORT=${{ secrets.PORT }}" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
+          echo "S3_ENDPOINT=${{ secrets.S3_ENDPOINT }}" >> .env
+          echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> .env
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker images
+        run: |
+          IMAGE=${{ secrets.DOCKER_USERNAME }}/school-backend
+          TAG=$(date +%Y%m%d%H%M%S)
+          echo "Building $IMAGE:$TAG and latest"
+          docker build --no-cache \
+            -t $IMAGE:$TAG \
+            -t $IMAGE:latest .
+
+          echo "Pushing images"
+          docker push $IMAGE:$TAG
+          docker push $IMAGE:latest
+
+      - name: Deploy to remote server
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            IMAGE=${{ secrets.DOCKER_USERNAME }}/school-backend:$TAG
+
+            echo "Pull latest image"
+            docker pull $IMAGE
+
+            echo "Stop & remove old container if exists"
+            if [ "$(docker ps -q -f name=school-backend)" ]; then
+              docker stop school-backend
+              docker rm school-backend
+            fi
+
+            echo "Run new container"
+            docker run -d \
+              --restart=always \
+              --name school-backend \
+              -p 4000:4000 \
+              $IMAGE

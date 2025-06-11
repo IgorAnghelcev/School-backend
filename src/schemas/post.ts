@@ -1,6 +1,15 @@
 import {z} from 'zod';
 
-const PostTypeEnum = z.enum(['NEWS', 'POST'] as const);
+const PostTypeEnum = z.enum([
+    'NEWS',
+    'ABOUT',
+    'TEACHERS',
+    'TEACHERS_DOCUMENTS',
+    'STUDENTS',
+    'LEARNING_PROCESS',
+    'PARENTS',
+    'POST'
+] as const);
 
 
 export const postParamsSchema = z.object({
@@ -43,6 +52,23 @@ export const getPostsSchema = z.object({
     }),
 });
 
+// 1) Схема валидации query-параметров
+export const getPhotosSchema = z.object({
+    query: z.object({
+        page: z.coerce
+            .number()
+            .min(1, { message: 'page ≥ 1' })
+            .default(1),
+        limit: z.coerce
+            .number()
+            .min(1, { message: 'limit ≥ 1' })
+            .max(100, { message: 'limit ≤ 100' })
+            .default(10),
+    }),
+});
+
+
+export type GetPhotos = z.infer<typeof getPhotosSchema>['query'];
 export type GetPostsInput = z.infer<typeof getPostsSchema>['query'];
 export type CreatePostInput = z.infer<typeof createPostSchema>['body'];
 export type UpdatePostInput = z.infer<typeof updatePostSchema>['body'];
