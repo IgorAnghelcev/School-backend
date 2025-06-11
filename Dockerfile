@@ -1,26 +1,26 @@
-# Удобно брать официальный образ с Node.js и Alpine для компактности
+# --- builder stage ---
 FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Копируем только манифесты, чтобы закэшировать npm install
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+# Копируем только package.json и package-lock.json (если нет, можно сначала его создать)
+COPY package.json package-lock.json ./
+# npm ci быстрее и повторяемо ставит ровно те версии, которые в lock-файле
+RUN npm ci
 
-# Копируем исходники и собираем (TS → JS)
+# Копируем весь исходный код и билдим TS
 COPY . .
-RUN yarn build
+RUN npm run build
 
-# --- финальный образ ---
+# --- runtime stage ---
 FROM node:18-alpine
 
 WORKDIR /app
-
-# Вытягиваем лишние зависимости (runtime-only)
+# Копируем только нужное из билдера
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+# Если у вас .env лежит в корне — скопируем и его
 COPY .env ./
 
 EXPOSE 4000
-
 CMD ["node", "dist/server.js"]
