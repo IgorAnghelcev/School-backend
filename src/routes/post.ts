@@ -56,9 +56,8 @@ const upload = multer({
         },
     }),
     limits: {
-        fileSize: 50 * 1024 * 1024, // например, ограничение на 50 МБ (настраивайте по потребности)
+        fileSize: 1000 * 1024 * 1024, // ограничение
     },
-    // Здесь нет fileFilter — значит принимаем любые mimetype
 });
 
 const router = Router();
